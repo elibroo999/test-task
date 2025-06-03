@@ -1,25 +1,34 @@
 // src/store.ts
-type Listener = () => void;
+type Listener<T> = (state: T) => void;
 
-export class Store<T extends object> {
-  private state: T;
-  private listeners: Set<Listener> = new Set();
+export function createStore<TState>(
+    initialState: TState,
+    actions?: (set: (state: Partial<TState>) => void) => any
+) {
+    let state = initialState;
+    const listeners: Listener <TState>[] =[];
 
-  constructor(initialState: T) {
-    this.state = initialState;
-  }
+    const getState = () => state;
 
-  getState(): T {
-    return this.state;
-  }
+    const setState = (newState: Partial<TState>) => {
+        state = {...state, newState};
+        listeners.forEach((listener) => listener(state));
+    };
 
-  setState(partial: Partial<T>): void {
-    this.state = { ...this.state, ...partial };
-    this.listeners.forEach((listener) => listener());
-  }
+    const subscribe = (listener: Listener<TState>) => {
+        listeners.push(listener);
+        return () => {
+            const index = listeners.indexOf(listener);
+            if (index > -1) listeners.splice(index, 1);
+        };
+    };
 
-  subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
+    const store = {
+        getState,
+        setState,
+        subscribe,
+        ...(actions ? actions(setState) : {})
+    };
+    
+    return store;
 }
